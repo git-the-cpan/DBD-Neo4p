@@ -28,10 +28,7 @@ my $build = Module::Build->new(
   meta_merge => {
     resources => {
       repository  => 'http://github.com/majensen/dbd-neo4p.git',
-    },
-    no_index => {
-      namespace => [ qw(DBD::Neo4p) ]
-     }
+    }
    },
   perl => 5.0101
 );
