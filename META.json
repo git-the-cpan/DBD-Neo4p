@@ -4,7 +4,7 @@
       "Mark A. Jensen"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4205",
+   "generated_by" : "Module::Build version 0.421",
    "license" : [
       "perl_5"
    ],
@@ -16,9 +16,9 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "DBI" : "0",
+            "DBI" : "1.632",
             "Module::Build" : "0",
-            "REST::Neo4p" : "0.2220",
+            "REST::Neo4p" : "0.3010",
             "Test::Exception" : "0",
             "Test::More" : "0",
             "experimental" : "0"
@@ -31,16 +31,16 @@
       },
       "runtime" : {
          "requires" : {
-            "DBI" : "0",
+            "DBI" : "1.632",
             "JSON" : "0",
-            "REST::Neo4p" : "0.2220"
+            "REST::Neo4p" : "0.3010"
          }
       }
    },
    "provides" : {
       "DBD::Neo4p" : {
          "file" : "lib/DBD/Neo4p.pm",
-         "version" : "0.0006"
+         "version" : "0.1000"
       },
       "DBD::Neo4p::db" : {
          "file" : "lib/DBD/Neo4p.pm"
@@ -56,7 +56,10 @@
    "resources" : {
       "license" : [
          "http://dev.perl.org/licenses/"
-      ]
+      ],
+      "repository" : {
+         "url" : "http://github.com/majensen/dbd-neo4p.git"
+      }
    },
-   "version" : "0.0006"
+   "version" : "0.1000"
 }

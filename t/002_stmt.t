@@ -1,5 +1,6 @@
 use Test::More;
 use Test::Exception;
+use Module::Build;
 use lib 't/lib';
 use lib '../lib';
 use lib '../t/lib';
@@ -15,20 +16,23 @@ eval {
   $build = Module::Build->current;
   $user = $build->notes('user');
   $pass = $build->notes('pass');
+  $ENV{REST_NEO4P_AGENT_MODULE} = $build->notes('backend');
 };
 my $TEST_SERVER = $build ? $build->notes('test_server') : 'http://127.0.0.1:7474';
 my $num_live_tests = 1;
 my ($t, $dbh);
 my $dsn = "dbi:Neo4p:db=$TEST_SERVER";
-$dsn .= ";user=$user;pass=$pass" if defined $user;
 my $connected;
 eval {
+  if (REST::Neo4p->agent->isa('LWP::UserAgent')) {
+    REST::Neo4p->agent->ssl_opts(verify_hostname => 0);
+  }
   $connected = REST::Neo4p->connect($TEST_SERVER, $user,$pass);
 };
 
 SKIP : {
   skip 'no connection to neo4j', $num_live_tests unless $connected;
-  ok $dbh = DBI->connect($dsn);
+  ok $dbh = DBI->connect($dsn,$user,$pass);
   $t = Neo4p::Test->new($TEST_SERVER,$user,$pass);
   ok $t->create_sample, 'create sample graph';
   my $idx = ${$t->nix};

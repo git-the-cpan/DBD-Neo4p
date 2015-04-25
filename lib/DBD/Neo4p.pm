@@ -1,15 +1,14 @@
-#$Id: Neo4p.pm 312 2013-12-13 01:44:14Z maj $
 use v5.10.1;
 package DBD::Neo4p;
 use strict;
 use warnings;
-use REST::Neo4p 0.2220;
+use REST::Neo4p 0.3010;
 use JSON;
 require DBI;
 no warnings qw/once/;
 
 BEGIN {
- $DBD::Neo4p::VERSION = '0.0006';
+ $DBD::Neo4p::VERSION = '0.1000';
 }
 
 our $err = 0;               # holds error code   for DBI::err
@@ -24,7 +23,7 @@ sub driver($$){
 
 # install methods if nec.
 
-    DBD::Neo4p::db->install_method('x_neo4j_version');
+    DBD::Neo4p::db->install_method('neo_neo4j_version');
 
     $drh = DBI::_new_drh($sClass,  
         {   
@@ -64,15 +63,22 @@ sub connect($$;$$$) {
       $key = "${prefix}_$key" unless $key =~ /^${prefix}_/;
       $dbh->STORE($key, $value);
     }
-
     my $db = delete $rhAttr->{"${prefix}_database"} || delete $rhAttr->{"${prefix}_db"};
-    my $host = delete $rhAttr->{"${prefix}_host"} || 'localhost';
-    my $port = delete $rhAttr->{"${prefix}_port"} || 7474;
-    my $protocol = delete $rhAttr->{"${prefix}_protocol"} || 'http';
-    my $user =  delete $rhAttr->{"${prefix}_user"} || $sUsr;
-    my $pass = delete $rhAttr->{"${prefix}_pass"} || delete $rhAttr->{"${prefix}_password"} || $sAuth;
+    my $host = $dbh->FETCH("${prefix}_host") || 'localhost';
+    my $port = $dbh->FETCH("${prefix}_port") || 7474;
+    my $protocol = $dbh->FETCH("${prefix}_protocol") || 'http';
+    my $user =  delete $rhAttr->{Username} || $sUsr;
+    my $pass = delete $rhAttr->{Password} || $sAuth;
+    if (my $ssl_opts = delete $rhAttr->{SSL_OPTS}) {
+      if (REST::Neo4p->agent->isa('LWP::UserAgent')) {
+	while (my ($k,$v) = each %$ssl_opts) {
+	  REST::Neo4p->agent->ssl_opts($k => $v);
+	}
+      }
+    }
     # use db=<protocol>://<host>:<port> or host=<host>;port=<port>
     # db attribute trumps
+
     if ($db) {
       ($protocol, $host, $port) = $db =~ m|^(https?)?(?:://)?([^:]+):?([0-9]*)$|;
       $protocol //= 'http';
@@ -83,7 +89,7 @@ sub connect($$;$$$) {
 
     $db = "$protocol://$host:$port";
     eval {
-      REST::Neo4p->connect($db,$user,$pass) or die "Can't connect";
+      REST::Neo4p->connect($db,$user,$pass);
     };
     if (my $e = Exception::Class->caught()) {
       return
@@ -211,7 +217,7 @@ sub ping {
 # neo4j metadata -- needs thinking
 # v2.0 : http://docs.neo4j.org/chunked/2.0.0-M06/rest-api-cypher.html#rest-api-retrieve-query-metadata
 
-sub x_neo4j_version {
+sub neo_neo4j_version {
   my $dbh = shift;
   return $dbh->{"${prefix}_agent"}->{_actions}{neo4j_version};
 }
@@ -346,8 +352,9 @@ sub execute($@) {
   # method delegates this to the query object and $sth->{NUM_OF_FIELDS}
   # thereby returns the correct number, but $sth->_set_bav($row) segfaults
   # if I don't:
+  $sth->STORE(NAME => $q->{NAME});
   $sth->STORE(NUM_OF_FIELDS => 0);
-  $sth->STORE(NUM_OF_FIELDS => $q->{NUM_OF_FIELDS});
+  $sth->STORE(NUM_OF_FIELDS => $q ? $q->{NUM_OF_FIELDS} : undef);
 
   $sth->{Active} = 1;
   return $numrows || '0E0';
@@ -376,8 +383,11 @@ sub fetch ($) {
     $sth->STORE(Active => 0);
     return undef;
   }
+  $sth->STORE(NAME => $q->{NAME});
+  $sth->STORE(NUM_OF_FIELDS => $q->{NUM_OF_FIELDS});
   $sth->_set_fbav($row);
 }
+
 *fetchrow_arrayref = \&fetch;
 
 # override fetchall_hashref - create a sensible hash key from node, 
@@ -449,8 +459,6 @@ sub FETCH ($$) {
   my $q =$sth->{"${prefix}_query_obj"};
   use experimental qw/smartmatch/;
   given ($attrib) {
-    when ('NAME') { return ($q && $q->{NAME}) }
-    when ('NUM_OF_FIELDS') { return ($q && $q->{NUM_OF_FIELDS}) }
     when ('TYPE') {
       return;
     }
@@ -484,7 +492,7 @@ sub STORE ($$$) {
   use experimental qw/smartmatch/;
   #1. Private driver attributes have neo_ prefix
   given ($attrib) {
-    when (/^${prefix}_/) { 
+    when (/^${prefix}_|(?:NAME$)/) { 
       $sth->{$attrib} = $value;
       return 1;
     }
@@ -546,7 +554,9 @@ L<DBD::Neo4p> requires L<REST::Neo4p> v0.2220 or greater.
 
  my $dbh = DBI->connect("dbi:Neo4p:db=http://127.0.0.1:7474");
  $dbh = DBI->connect("dbi:Neo4p:host=127.0.0.1;port=7474");
- $dbh = DBI->connect("dbi:Neo4p:db=http://127.0.0.1:7474;user=me;pass=s3kr1t");
+ $dbh = DBI->connect("dbi:Neo4p:db=http://127.0.0.1:7474",$user,$pass);
+ $dbh = DBI->connect("dbi:Neo4p:db=http://127.0.0.1:7474",
+                      { Username => 'me', Password => 's3kr1t'};
 
 =back
 
@@ -592,9 +602,9 @@ have tables. In Neo4j version 2.0 servers, node labels and indexes
 allow a schema-like constraint system (see
 L<http://docs.neo4j.org/chunked/2.0.0-RC1/cypher-schema.html>).
 
-=item x_neo4j_version
+=item neo_neo4j_version
 
- say "Neo4j Server Version ".$dbh->x_neo4j_version;
+ say "Neo4j Server Version ".$dbh->neo_neo4j_version;
 
 Get the neo4j server version.
 
@@ -695,12 +705,12 @@ L<REST::Neo4p>, L<REST::Neo4p::Query>, L<DBI>, L<DBI::DBD>
 
 =head1 COPYRIGHT
 
- (c) 2013 by Mark A. Jensen
+ (c) 2013-2015 by Mark A. Jensen
 
 =head1 LICENSE
 
-Copyright (c) 2013 Mark A. Jensen. This program is free software; you
-can redistribute it and/or modify it under the same terms as Perl
+Copyright (c) 2013-2015 Mark A. Jensen. This program is free software;
+you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
