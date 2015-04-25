@@ -8,7 +8,7 @@ require DBI;
 no warnings qw/once/;
 
 BEGIN {
- $DBD::Neo4p::VERSION = '0.1001';
+ $DBD::Neo4p::VERSION = '0.1002';
 }
 
 our $err = 0;               # holds error code   for DBI::err
@@ -37,7 +37,7 @@ sub driver($$){
     );
     return $drh;
 }
-{
+
 package DBD::Neo4p::dr;
 $DBD::Neo4p::dr::imp_data_size = 0;
 
@@ -506,7 +506,7 @@ sub DESTROY {
   my ($sth) = @_;
   undef $sth->{"${prefix}_query_obj"};
 }
-}
+
 #>> Just for no warning-----------------------------------------------
 $DBD::Neo4p::dr::imp_data_size = 0;
 $DBD::Neo4p::db::imp_data_size = 0;

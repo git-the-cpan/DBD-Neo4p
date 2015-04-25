@@ -18,10 +18,13 @@ meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: '1.4'
 name: DBD-Neo4p
+no_index:
+  namespace:
+    - DBD::Neo4p
 provides:
   DBD::Neo4p:
     file: lib/DBD/Neo4p.pm
-    version: '0.1001'
+    version: '0.1002'
   DBD::Neo4p::db:
     file: lib/DBD/Neo4p.pm
   DBD::Neo4p::dr:
@@ -35,4 +38,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://github.com/majensen/dbd-neo4p.git
-version: '0.1001'
+version: '0.1002'
